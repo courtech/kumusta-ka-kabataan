@@ -598,34 +598,8 @@
 </footer>
 
 <script>
-// ── STORAGE (localStorage as lightweight DB) ──
-const STORE_KEY = 'kkk_submissions';
-const WALL_KEY = 'kkk_wall';
-
-function getSubmissions() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { return []; }
-}
-function saveSubmissions(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
-function getWall() {
-  try { return JSON.parse(localStorage.getItem(WALL_KEY)) || []; } catch { return []; }
-}
-function saveWall(d) { localStorage.setItem(WALL_KEY, JSON.stringify(d)); }
-
-// ── SEED DATA ──
-function seedWall() {
-  if (getWall().length === 0) {
-    saveWall([
-      { id: 's1', mood: 'Kapoy', message: 'Kapoy kaayo ko lately, pero trying gihapon. Isa ka adlaw ra.', need: ['Rest'], ts: Date.now() - 86400000 },
-      { id: 's2', mood: 'Sad', message: 'I wish someone would ask me if okay pa ba ko.', need: ['Someone to listen'], ts: Date.now() - 72000000 },
-      { id: 's3', mood: 'Happy', message: 'Happy ko today kay naka-survive ko sa week. Proud of myself.', need: ['Motivation'], ts: Date.now() - 3600000 },
-      { id: 's4', mood: 'Overwhelmed', message: 'Daghan kaayo kog gibuhat pero feeling ko wala gyud ko nakapahinga.', need: ['Rest', 'Space'], ts: Date.now() - 18000000 },
-      { id: 's5', mood: 'Stress', message: 'Palakat na ang exam pero dili gyud ko makatuon. Nalibog ko.', need: ['Advice'], ts: Date.now() - 7200000 },
-      { id: 's6', mood: 'Okay ra ko', message: 'Okay ra naman ko karon. Salamat sa maong space nga makaexpress.', need: ['Prayer'], ts: Date.now() - 43200000 },
-    ]);
-  }
-}
-seedWall();
-
+const SUPABASE_URL = 'https://ihqngumpksqcccsvgduv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlocW5ndW1wa3NxY2Njc3ZnZHV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwODU1OTQsImV4cCI6MjA5NzY2MTU5NH0.4Xticv9bRm-zs6sUMiF8BgHiHg4yOdTrngBfIDQ-BCk';
 // ── SCROLL ──
 function scrollTo(id) {
   document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
