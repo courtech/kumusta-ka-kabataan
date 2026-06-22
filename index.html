@@ -413,7 +413,7 @@
     .nav-links { gap: 1rem; }
   }
 </style>
-  <script type="module" src="https://lottie.host/e155c421-7225-43e7-8f1f-9b09acf49e3d/cU5iz2P6gB.json""></script>
+ <script type="module" src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.js"></script>
 </head>
 <body>
 
@@ -515,7 +515,7 @@
     <div class="wall-grid" id="wall-grid">
     <div class="loading-wall" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem;">
   <dotlottie-player
-    src="https://lottie.host/c91f6b9d-5c2d-4af5-86ab-f57992f3f63c/VcxQtBCJDK.lottie"
+    src="https://lottie.host/e155c421-7225-43e7-8f1f-9b09acf49e3d/cU5iz2P6gB.json"
     background="transparent"
     speed="1"
     style="width: 220px; height: 220px;"
@@ -644,40 +644,6 @@ document.querySelectorAll('.radio-option').forEach(label => {
   });
 });
 
-// ── AI MODERATION ──
-async function moderateWithAI(submission) {
-  const prompt = `You are a youth mental health content moderator for an anonymous youth check-in wall run by the Sangguniang Kabataan Federation of San Isidro in the Philippines. Your job is to review anonymous youth submissions.
-
-Submission to review:
-- Mood: ${submission.mood}
-- Message: "${submission.message || '(no message)'}"
-- Needs: ${submission.needs.join(', ') || 'none selected'}
-
-Evaluate if this is SAFE to post on a public anonymous wall for youth. 
-
-Safe content: genuine emotional expression, everyday struggles, hopeful messages, seeking support
-Unsafe content: explicit self-harm plans, violence, bullying, hate speech, real names/identities, sexual content, extreme crisis language suggesting immediate danger, fake/joke/spam content
-
-Respond ONLY in this JSON format (no extra text, no markdown):
-{"safe": true or false, "confidence": "high" or "medium" or "low", "reason": "one sentence explanation", "suggestion": "optional brief note for admin"}`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    const text = data.content[0].text.trim();
-    return JSON.parse(text);
-  } catch {
-    return { safe: null, confidence: 'low', reason: 'AI check unavailable — please review manually.', suggestion: '' };
-  }
-}
 
 // ── FORM SUBMIT ──
 async function submitForm() {
@@ -697,16 +663,7 @@ async function submitForm() {
     mood, message, needs, visibility,
     ts: Date.now(),
     status: 'pending',
-    aiCheck: null
   };
-
-  // Run AI moderation in background
-  moderateWithAI(submission).then(check => {
-    submission.aiCheck = check;
-    const subs = getSubmissions();
-    const idx = subs.findIndex(s => s.id === submission.id);
-    if (idx !== -1) { subs[idx].aiCheck = check; saveSubmissions(subs); }
-  });
 
   const subs = getSubmissions();
   subs.push(submission);
@@ -897,32 +854,696 @@ window.addEventListener('hashchange', checkAdminHash);
   <canvas id="cat-canvas" width="80" height="64" style="position:absolute;bottom:16px;image-rendering:pixelated;cursor:pointer;pointer-events:all;"></canvas>
   <div id="cat-bubble" style="position:fixed;background:white;border:2px solid #444;border-radius:8px;padding:3px 9px;font-family:monospace;font-size:12px;white-space:nowrap;opacity:0;transition:opacity 0.3s;pointer-events:none;bottom:90px;left:20px;"></div>
 </div>
+  
+<!-- ORANGE PIXEL CAT -->
+<script>
+<div
+  id="cat-scene"
+  style="
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+    z-index: 9999;
+  "
+>
+  <canvas
+    id="cat-canvas"
+    width="96"
+    height="72"
+    aria-label="Interactive orange pixel cat"
+    role="button"
+    tabindex="0"
+    style="
+      position: absolute;
+      left: 40px;
+      bottom: 14px;
+      width: 96px;
+      height: 72px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: pointer;
+      pointer-events: auto;
+      transform-origin: center;
+      filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.16));
+    "
+  ></canvas>
+
+  <div
+    id="cat-bubble"
+    style="
+      position: fixed;
+      background: #fffaf1;
+      border: 3px solid #1d1714;
+      border-radius: 8px;
+      padding: 4px 9px;
+      color: #40291c;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: bold;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-50%) translateY(5px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.12);
+    "
+  ></div>
+</div>
 
 <script>
-const _cv = document.getElementById('cat-canvas');
-const _cx = _cv.getContext('2d');
-_cx.imageSmoothingEnabled = false;
-const _bubble = document.getElementById('cat-bubble');
-const S = 4;
-function p(x,y,c){_cx.fillStyle=c;_cx.fillRect(x*S,y*S,S,S);}
-const O='#E8820C',D='#C05A00',W='#F5C27A',PK='#F4A0A0',BK='#222',GR='#5a9e3a';
-function drawWalk(frame){_cx.clearRect(0,0,80,64);const f=frame%2,by=6;for(let x=2;x<=13;x++)p(x,by,O);for(let x=3;x<=12;x++)p(x,by-1,O);for(let x=3;x<=12;x++)p(x,by+1,O);p(5,by-1,D);p(5,by,D);p(8,by-1,D);p(8,by,D);p(11,by-1,D);p(11,by,D);for(let x=5;x<=10;x++)p(x,by+1,W);p(14,by,O);p(15,by-1,O);p(15,by-2,O);p(14,by-2,O);p(13,by-2,O);for(let x=0;x<=5;x++)p(x,2,O);for(let x=-1;x<=5;x++)p(x,3,O);for(let x=0;x<=5;x++)p(x,4,O);p(0,1,O);p(0,0,O);p(1,1,PK);p(4,1,O);p(5,1,O);p(4,0,O);p(3,1,PK);p(1,3,BK);p(3,3,BK);p(2,4,PK);p(1,5,BK);p(3,5,BK);const l1=f===0?by+2:by+3,l2=f===0?by+3:by+2;p(4,l1,O);p(4,l1+1,W);p(7,l2,O);p(7,l2+1,W);p(10,l1,O);p(10,l1+1,W);}
-function drawSit(frame){_cx.clearRect(0,0,80,64);for(let x=3;x<=11;x++)p(x,8,O);for(let x=2;x<=12;x++)p(x,9,O);for(let x=2;x<=12;x++)p(x,10,O);for(let x=3;x<=11;x++)p(x,11,O);for(let x=4;x<=10;x++)p(x,10,W);for(let x=5;x<=9;x++)p(x,9,W);p(3,8,D);p(7,8,D);p(11,8,D);p(3,12,O);p(4,12,W);p(9,12,W);p(10,12,O);p(12,11,O);p(13,11,O);p(13,12,O);p(12,12,O);for(let x=4;x<=10;x++)p(x,5,O);for(let x=3;x<=11;x++)p(x,6,O);for(let x=4;x<=10;x++)p(x,7,O);p(4,4,O);p(4,3,O);p(5,4,PK);p(10,4,O);p(10,3,O);p(9,4,PK);p(6,6,BK);p(8,6,BK);p(7,7,PK);p(7,5,D);}
-function drawSleep(frame){_cx.clearRect(0,0,80,64);for(let x=1;x<=14;x++)p(x,10,O);for(let x=2;x<=13;x++)p(x,9,O);for(let x=3;x<=12;x++)p(x,11,O);for(let x=4;x<=11;x++)p(x,10,W);p(4,9,D);p(7,9,D);p(10,9,D);for(let x=0;x<=5;x++)p(x,8,O);for(let x=0;x<=6;x++)p(x,9,O);for(let x=1;x<=5;x++)p(x,10,O);p(0,7,O);p(1,7,PK);p(4,7,O);p(3,7,PK);p(2,9,D);p(4,9,D);p(15,10,O);p(16,9,O);p(16,8,O);p(15,8,O);if(frame%3===0){p(5,6,W);p(6,5,W);p(4,5,W);}if(frame%3===1){p(6,5,W);p(7,4,W);p(5,4,W);p(8,4,W);}}
-function drawHappy(frame){drawSit(frame);_cx.clearRect(6*S,6*S,S,S);_cx.clearRect(8*S,6*S,S,S);p(5,6,BK);p(6,5,BK);p(8,5,BK);p(9,6,BK);if(frame%2===0){p(11,3,'#f66');p(13,3,'#f66');p(10,2,'#f66');p(11,2,'#f66');p(12,2,'#f66');p(13,2,'#f66');p(14,2,'#f66');p(11,1,'#f66');p(12,1,'#f66');p(13,1,'#f66');p(12,0,'#f66');}}
-function drawGrumpy(frame){drawSit(frame);_cx.clearRect(6*S,6*S,S,S);_cx.clearRect(8*S,6*S,S,S);p(5,5,'#e33');p(6,6,'#e33');p(8,6,'#e33');p(9,5,'#e33');p(5,4,BK);p(6,4,BK);p(9,4,BK);p(8,4,BK);p(6,8,'#e33');p(7,7,'#f99');p(8,8,'#e33');p(12,9,O);p(13,9,O);p(14,10,O);p(13,11,O);p(12,11,O);if(frame%2===0){p(13,2,'#ff0');p(12,3,'#ff0');p(13,3,'#ff0');p(12,4,'#ff0');}}
-const CAT={x:40,vx:1.0,facing:1,state:'walk',stateTimer:200,frame:0,frameTimer:0};
-function catSetState(s,t){CAT.state=s;CAT.stateTimer=t||180;CAT.frame=0;}
-let _bubbleTO;
-function catShowBubble(text){_bubble.textContent=text;const r=_cv.getBoundingClientRect();_bubble.style.left=(r.left+5)+'px';_bubble.style.bottom='90px';_bubble.style.opacity='1';clearTimeout(_bubbleTO);_bubbleTO=setTimeout(()=>_bubble.style.opacity='0',1600);}
-_cv.addEventListener('click',()=>{if(Math.random()<0.5){catSetState('happy',160);catShowBubble('purr~ ♡');}else{catSetState('grumpy',130);const m=['HSSSS!','leave me!!','>:3','no touch!','i bite!!'];catShowBubble(m[Math.floor(Math.random()*m.length)]);}});
-_cv.addEventListener('mouseenter',()=>{if(CAT.state==='walk')catSetState('sit',90);});
-let _last=0;
-function catLoop(ts){const dt=ts-_last;_last=ts;CAT.frameTimer+=dt;if(CAT.frameTimer>220){CAT.frame++;CAT.frameTimer=0;}CAT.stateTimer-=dt/16;const sw=window.innerWidth;if(CAT.state==='walk'){CAT.x+=CAT.vx;if(CAT.x>sw-90){CAT.vx=-Math.abs(CAT.vx);CAT.facing=-1;}if(CAT.x<4){CAT.vx=Math.abs(CAT.vx);CAT.facing=1;}if(CAT.stateTimer<=0){const r=Math.random();if(r<0.35)catSetState('sleep',300+Math.random()*200);else if(r<0.65)catSetState('sit',120+Math.random()*120);else CAT.stateTimer=150+Math.random()*150;}}else{if(CAT.stateTimer<=0)catSetState('walk',200+Math.random()*250);}
-_cv.style.left=CAT.x+'px';_cv.style.transform=CAT.facing===-1?'scaleX(-1)':'scaleX(1)';
-if(CAT.state==='walk')drawWalk(CAT.frame);else if(CAT.state==='sit')drawSit(CAT.frame);else if(CAT.state==='sleep')drawSleep(CAT.frame);else if(CAT.state==='happy')drawHappy(CAT.frame);else if(CAT.state==='grumpy')drawGrumpy(CAT.frame);
-requestAnimationFrame(catLoop);}
-requestAnimationFrame(catLoop);
+(() => {
+  const _cv = document.getElementById("cat-canvas");
+  const _cx = _cv.getContext("2d");
+  const _bubble = document.getElementById("cat-bubble");
+
+  _cx.imageSmoothingEnabled = false;
+
+  /*
+   * Canvas: 96 × 72
+   * Pixel grid: 24 × 18
+   */
+  const S = 4;
+
+  const BK = "#181310";
+  const O = "#E98232";
+  const OL = "#F6A24F";
+  const D = "#C75C20";
+  const W = "#F9D7AE";
+  const WL = "#FFF1DB";
+  const PK = "#F39AA2";
+  const RED = "#E94B4B";
+  const YELLOW = "#FFD84A";
+  const SHADOW = "rgba(52, 37, 27, 0.16)";
+
+  function p(x, y, color) {
+    _cx.fillStyle = color;
+    _cx.fillRect(
+      Math.round(x) * S,
+      Math.round(y) * S,
+      S,
+      S
+    );
+  }
+
+  function r(x, y, width, height, color) {
+    _cx.fillStyle = color;
+    _cx.fillRect(
+      Math.round(x) * S,
+      Math.round(y) * S,
+      Math.round(width) * S,
+      Math.round(height) * S
+    );
+  }
+
+  function clearCat() {
+    _cx.clearRect(0, 0, _cv.width, _cv.height);
+  }
+
+  function drawShadow(x = 3, width = 18) {
+    r(x, 16, width, 1, SHADOW);
+    r(x + 2, 17, width - 4, 1, SHADOW);
+  }
+
+  /*
+   * Walking cat faces RIGHT by default.
+   */
+  function drawWalk(frame) {
+    clearCat();
+
+    const step = frame % 4;
+    const bob = step === 1 || step === 3 ? 1 : 0;
+    const blink = frame % 22 === 0;
+
+    drawShadow(2, 20);
+
+    // Tail outline
+    r(0, 8 + bob, 3, 2, BK);
+    r(1, 6 + bob, 3, 3, BK);
+    r(2, 4 + bob, 4, 3, BK);
+
+    // Tail fill
+    r(1, 8 + bob, 2, 1, O);
+    r(2, 6 + bob, 2, 2, O);
+    r(3, 5 + bob, 2, 1, O);
+    p(3, 6 + bob, D);
+    p(4, 5 + bob, D);
+
+    // Body outline
+    r(4, 7 + bob, 12, 7, BK);
+    r(5, 6 + bob, 10, 1, BK);
+
+    // Body
+    r(5, 7 + bob, 10, 6, O);
+    r(6, 6 + bob, 8, 1, OL);
+
+    // Body stripes
+    r(7, 7 + bob, 1, 2, D);
+    r(10, 7 + bob, 1, 2, D);
+    r(13, 7 + bob, 1, 2, D);
+
+    // Cream belly
+    r(9, 11 + bob, 5, 2, W);
+
+    // Neck
+    r(14, 7 + bob, 3, 6, BK);
+    r(15, 8 + bob, 2, 4, O);
+
+    // Head outline
+    r(15, 3 + bob, 3, 3, BK);
+    r(20, 3 + bob, 3, 3, BK);
+    r(14, 5 + bob, 9, 7, BK);
+    r(15, 4 + bob, 7, 1, BK);
+    r(15, 12 + bob, 7, 1, BK);
+
+    // Head fill
+    r(15, 5 + bob, 7, 6, O);
+
+    // Ears
+    r(16, 4 + bob, 2, 2, O);
+    r(20, 4 + bob, 2, 2, O);
+
+    p(16, 5 + bob, W);
+    p(21, 5 + bob, W);
+
+    // Head stripes
+    p(17, 5 + bob, D);
+    p(18, 5 + bob, D);
+    p(20, 5 + bob, D);
+
+    // Cream muzzle
+    r(20, 9 + bob, 2, 2, WL);
+
+    // Eyes
+    if (blink) {
+      r(17, 8 + bob, 2, 1, BK);
+      r(20, 8 + bob, 2, 1, BK);
+    } else {
+      p(18, 7 + bob, WL);
+      p(21, 7 + bob, WL);
+      p(18, 8 + bob, BK);
+      p(21, 8 + bob, BK);
+    }
+
+    // Nose
+    p(22, 9 + bob, PK);
+
+    // Whiskers
+    r(22, 7 + bob, 2, 1, BK);
+    r(22, 10 + bob, 2, 1, BK);
+
+    // Legs
+    if (step === 0 || step === 2) {
+      r(5, 13 + bob, 4, 3, BK);
+      r(6, 13 + bob, 2, 2, O);
+      r(6, 15 + bob, 2, 1, W);
+
+      r(12, 13 + bob, 4, 3, BK);
+      r(13, 13 + bob, 2, 2, O);
+      r(13, 15 + bob, 2, 1, W);
+    } else {
+      r(6, 13 + bob, 4, 3, BK);
+      r(7, 13 + bob, 2, 2, O);
+      r(7, 15 + bob, 2, 1, W);
+
+      r(11, 13 + bob, 4, 3, BK);
+      r(12, 13 + bob, 2, 2, O);
+      r(12, 15 + bob, 2, 1, W);
+    }
+  }
+
+  function drawFrontHead(mode, frame, offsetY = 0) {
+    const blink = frame % 20 === 0;
+
+    // Ear outlines
+    r(6, 0 + offsetY, 3, 3, BK);
+    r(15, 0 + offsetY, 3, 3, BK);
+
+    // Head outline
+    r(6, 1 + offsetY, 12, 1, BK);
+    r(5, 2 + offsetY, 14, 8, BK);
+    r(6, 10 + offsetY, 12, 1, BK);
+
+    // Head fill
+    r(6, 2 + offsetY, 12, 7, O);
+
+    // Ear fill
+    r(7, 1 + offsetY, 2, 2, O);
+    r(15, 1 + offsetY, 2, 2, O);
+
+    // Inner ears
+    p(7, 2 + offsetY, W);
+    p(16, 2 + offsetY, W);
+
+    // Forehead stripes
+    r(10, 2 + offsetY, 1, 2, D);
+    r(12, 2 + offsetY, 1, 2, D);
+    r(14, 2 + offsetY, 1, 2, D);
+
+    // Cheek stripes
+    r(6, 5 + offsetY, 2, 1, D);
+    r(6, 7 + offsetY, 2, 1, D);
+
+    r(16, 5 + offsetY, 2, 1, D);
+    r(16, 7 + offsetY, 2, 1, D);
+
+    // Whiskers
+    r(2, 5 + offsetY, 3, 1, BK);
+    r(1, 7 + offsetY, 4, 1, BK);
+
+    r(19, 5 + offsetY, 3, 1, BK);
+    r(19, 7 + offsetY, 4, 1, BK);
+
+    if (mode === "happy") {
+      // Happy curved eyes
+      p(9, 6 + offsetY, BK);
+      p(10, 5 + offsetY, BK);
+
+      p(14, 5 + offsetY, BK);
+      p(15, 6 + offsetY, BK);
+
+      // Blush
+      p(8, 7 + offsetY, PK);
+      p(16, 7 + offsetY, PK);
+    } else if (mode === "grumpy") {
+      // Angry eyebrows and eyes
+      p(9, 4 + offsetY, BK);
+      p(10, 5 + offsetY, BK);
+
+      p(14, 5 + offsetY, BK);
+      p(15, 4 + offsetY, BK);
+
+      p(10, 6 + offsetY, BK);
+      p(14, 6 + offsetY, BK);
+    } else if (blink) {
+      r(9, 6 + offsetY, 2, 1, BK);
+      r(14, 6 + offsetY, 2, 1, BK);
+    } else {
+      // Normal eyes
+      p(9, 5 + offsetY, WL);
+      p(15, 5 + offsetY, WL);
+
+      p(9, 6 + offsetY, BK);
+      p(15, 6 + offsetY, BK);
+    }
+
+    // Nose
+    p(12, 7 + offsetY, BK);
+
+    if (mode === "happy") {
+      p(11, 8 + offsetY, BK);
+      p(13, 8 + offsetY, BK);
+      p(12, 9 + offsetY, PK);
+    } else if (mode === "grumpy") {
+      p(11, 9 + offsetY, BK);
+      p(12, 8 + offsetY, BK);
+      p(13, 9 + offsetY, BK);
+    } else {
+      p(12, 8 + offsetY, PK);
+    }
+  }
+
+  function drawSit(frame, mode = "normal") {
+    clearCat();
+
+    const bounce =
+      mode === "happy" && frame % 2 === 0 ? -1 : 0;
+
+    drawShadow(3, 18);
+
+    // Tail outline
+    r(17, 10 + bounce, 2, 5, BK);
+    r(18, 8 + bounce, 3, 3, BK);
+    r(20, 7 + bounce, 4, 2, BK);
+
+    // Tail fill
+    p(18, 11 + bounce, O);
+    p(18, 12 + bounce, D);
+    p(19, 9 + bounce, O);
+    p(20, 9 + bounce, D);
+    r(21, 8 + bounce, 2, 1, O);
+
+    // Body outline
+    r(7, 9 + bounce, 10, 7, BK);
+    r(8, 8 + bounce, 8, 1, BK);
+
+    // Body
+    r(8, 9 + bounce, 8, 6, O);
+
+    // Chest
+    r(10, 10 + bounce, 4, 5, W);
+    p(9, 11 + bounce, W);
+    p(14, 12 + bounce, W);
+
+    // Side stripes
+    p(8, 10 + bounce, D);
+    p(8, 12 + bounce, D);
+    p(15, 10 + bounce, D);
+    p(15, 12 + bounce, D);
+
+    // Feet
+    r(6, 14 + bounce, 5, 2, BK);
+    r(8, 14 + bounce, 2, 1, W);
+
+    r(14, 14 + bounce, 5, 2, BK);
+    r(15, 14 + bounce, 2, 1, W);
+
+    drawFrontHead(mode, frame, bounce);
+
+    if (mode === "happy") {
+      const heartY = frame % 4 < 2 ? 0 : -1;
+
+      p(20, 1 + heartY, RED);
+      p(22, 1 + heartY, RED);
+      r(19, 2 + heartY, 5, 2, RED);
+      r(20, 4 + heartY, 3, 1, RED);
+      p(21, 5 + heartY, RED);
+    }
+
+    if (mode === "grumpy" && frame % 4 < 2) {
+      p(20, 1, RED);
+      p(22, 1, RED);
+      p(21, 2, RED);
+      p(20, 3, RED);
+      p(22, 3, RED);
+    }
+  }
+
+  function drawSleep(frame) {
+    clearCat();
+
+    const breathe = frame % 4 < 2 ? 0 : 1;
+
+    drawShadow(2, 20);
+
+    // Body outline
+    r(4, 10 + breathe, 15, 6, BK);
+    r(6, 9 + breathe, 11, 1, BK);
+
+    // Body
+    r(5, 10 + breathe, 13, 5, O);
+    r(7, 9 + breathe, 9, 1, OL);
+
+    // Belly
+    r(10, 12 + breathe, 6, 3, W);
+
+    // Stripes
+    r(9, 9 + breathe, 1, 2, D);
+    r(12, 9 + breathe, 1, 2, D);
+    r(15, 10 + breathe, 1, 2, D);
+
+    // Head outline
+    r(1, 9 + breathe, 8, 6, BK);
+    r(2, 8 + breathe, 6, 1, BK);
+
+    // Ears
+    r(1, 7 + breathe, 3, 3, BK);
+    r(6, 7 + breathe, 3, 3, BK);
+
+    // Head fill
+    r(2, 9 + breathe, 6, 5, O);
+
+    p(2, 8 + breathe, O);
+    p(3, 8 + breathe, W);
+
+    p(7, 8 + breathe, O);
+    p(7, 9 + breathe, W);
+
+    // Closed eyes
+    r(2, 11 + breathe, 2, 1, BK);
+    r(6, 11 + breathe, 2, 1, BK);
+
+    // Nose
+    p(5, 13 + breathe, PK);
+
+    // Tail
+    r(18, 11 + breathe, 2, 4, BK);
+    r(19, 9 + breathe, 4, 3, BK);
+
+    p(19, 12 + breathe, O);
+    p(20, 10 + breathe, O);
+    p(21, 10 + breathe, D);
+
+    // Sleeping Zs
+    if (frame % 6 < 4) {
+      r(10, 6, 2, 1, BK);
+      p(11, 7, BK);
+      r(10, 8, 2, 1, BK);
+    }
+
+    if (frame % 6 > 1) {
+      r(14, 3, 2, 1, BK);
+      p(15, 4, BK);
+      r(14, 5, 2, 1, BK);
+    }
+  }
+
+  function drawHappy(frame) {
+    drawSit(frame, "happy");
+  }
+
+  function drawGrumpy(frame) {
+    drawSit(frame, "grumpy");
+
+    // Extra angry spark
+    if (frame % 2 === 0) {
+      p(2, 2, YELLOW);
+      p(3, 3, YELLOW);
+      p(2, 4, YELLOW);
+    }
+  }
+
+  const CAT = {
+    x: 40,
+    direction: 1,
+    speed: 52,
+    state: "walk",
+    stateEnd: 0,
+    frame: 0,
+    frameTimer: 0
+  };
+
+  let _last = 0;
+  let _bubbleTO;
+
+  function randomBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function catSetState(state, duration) {
+    CAT.state = state;
+    CAT.stateEnd = performance.now() + duration;
+    CAT.frame = 0;
+    CAT.frameTimer = 0;
+  }
+
+  function catShowBubble(text) {
+    _bubble.textContent = text;
+
+    const bounds = _cv.getBoundingClientRect();
+    const center = bounds.left + bounds.width / 2;
+    const safeCenter = Math.max(
+      60,
+      Math.min(window.innerWidth - 60, center)
+    );
+
+    _bubble.style.left = `${safeCenter}px`;
+    _bubble.style.top =
+      `${Math.max(8, bounds.top - 36)}px`;
+
+    _bubble.style.opacity = "1";
+    _bubble.style.transform =
+      "translateX(-50%) translateY(0)";
+
+    clearTimeout(_bubbleTO);
+
+    _bubbleTO = setTimeout(() => {
+      _bubble.style.opacity = "0";
+      _bubble.style.transform =
+        "translateX(-50%) translateY(5px)";
+    }, 1600);
+  }
+
+  function catInteract() {
+    if (Math.random() < 0.7) {
+      const messages = [
+        "purr~ ♡",
+        "mrrp!",
+        "nyaa~",
+        "hehe ♡",
+        "more pets!"
+      ];
+
+      catSetState("happy", 2200);
+
+      catShowBubble(
+        messages[
+          Math.floor(Math.random() * messages.length)
+        ]
+      );
+    } else {
+      const messages = [
+        "HSSS!",
+        "no touch!",
+        ">:3",
+        "i bite!",
+        "hmph!"
+      ];
+
+      catSetState("grumpy", 1700);
+
+      catShowBubble(
+        messages[
+          Math.floor(Math.random() * messages.length)
+        ]
+      );
+    }
+  }
+
+  _cv.addEventListener("click", catInteract);
+
+  _cv.addEventListener("mouseenter", () => {
+    if (CAT.state === "walk") {
+      catSetState("sit", 1500);
+      catShowBubble("mrrp?");
+    }
+  });
+
+  _cv.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      catInteract();
+    }
+  });
+
+  function updateCatState(timestamp) {
+    if (timestamp < CAT.stateEnd) {
+      return;
+    }
+
+    if (CAT.state !== "walk") {
+      catSetState(
+        "walk",
+        randomBetween(3000, 6000)
+      );
+
+      return;
+    }
+
+    const chance = Math.random();
+
+    if (chance < 0.32) {
+      catSetState(
+        "sit",
+        randomBetween(1500, 3000)
+      );
+    } else if (chance < 0.5) {
+      catSetState(
+        "sleep",
+        randomBetween(3500, 6500)
+      );
+    } else {
+      CAT.stateEnd =
+        timestamp + randomBetween(2500, 5500);
+    }
+  }
+
+  function moveCat(deltaSeconds) {
+    if (CAT.state !== "walk") {
+      return;
+    }
+
+    CAT.x +=
+      CAT.direction * CAT.speed * deltaSeconds;
+
+    const minimumX = 4;
+    const maximumX = Math.max(
+      minimumX,
+      window.innerWidth - _cv.offsetWidth - 4
+    );
+
+    if (CAT.x >= maximumX) {
+      CAT.x = maximumX;
+      CAT.direction = -1;
+    }
+
+    if (CAT.x <= minimumX) {
+      CAT.x = minimumX;
+      CAT.direction = 1;
+    }
+  }
+
+  function drawCat() {
+    _cv.style.left = `${CAT.x}px`;
+
+    /*
+     * The walking sprite faces right by default.
+     *
+     * Moving right: no flip
+     * Moving left: flip horizontally
+     */
+    _cv.style.transform =
+      CAT.direction === 1
+        ? "scaleX(1)"
+        : "scaleX(-1)";
+
+    if (CAT.state === "walk") {
+      drawWalk(CAT.frame);
+    } else if (CAT.state === "sit") {
+      drawSit(CAT.frame);
+    } else if (CAT.state === "sleep") {
+      drawSleep(CAT.frame);
+    } else if (CAT.state === "happy") {
+      drawHappy(CAT.frame);
+    } else if (CAT.state === "grumpy") {
+      drawGrumpy(CAT.frame);
+    }
+  }
+
+  function catLoop(timestamp) {
+    if (!_last) {
+      _last = timestamp;
+      CAT.stateEnd =
+        timestamp + randomBetween(3000, 5500);
+    }
+
+    const deltaMilliseconds = Math.min(
+      timestamp - _last,
+      40
+    );
+
+    _last = timestamp;
+
+    CAT.frameTimer += deltaMilliseconds;
+
+    const frameSpeed =
+      CAT.state === "walk" ? 145 : 250;
+
+    if (CAT.frameTimer >= frameSpeed) {
+      CAT.frame++;
+      CAT.frameTimer = 0;
+    }
+
+    updateCatState(timestamp);
+    moveCat(deltaMilliseconds / 1000);
+    drawCat();
+
+    requestAnimationFrame(catLoop);
+  }
+
+  window.addEventListener("resize", () => {
+    const maximumX = Math.max(
+      4,
+      window.innerWidth - _cv.offsetWidth - 4
+    );
+
+    CAT.x = Math.min(CAT.x, maximumX);
+  });
+
+  requestAnimationFrame(catLoop);
+})();
 </script>
 
 </body>
